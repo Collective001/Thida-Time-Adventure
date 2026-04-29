@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thida Time Adventure</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #15120f;
+      --panel: #211b17;
+      --panel-2: #2d251f;
+      --text: #f8eee3;
+      --muted: #c9b8a5;
+      --accent: #f2b15e;
+      --accent-2: #8fd2c9;
+      --bad: #f07f7f;
+      --border: #5b4737;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 20% 0%, rgba(143, 210, 201, 0.16), transparent 28rem),
+        linear-gradient(160deg, #15120f 0%, #251a16 52%, #111313 100%);
+      color: var(--text);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.45;
+    }
+
+    main {
+      width: min(920px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: 14px;
+      gap: 12px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px 2px 2px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.5rem, 7vw, 2.4rem);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .scene-pill {
+      min-width: 84px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      background: rgba(33, 27, 23, 0.82);
+      border-radius: 8px;
+      color: var(--accent-2);
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      font-size: 0.78rem;
+      text-align: center;
+    }
+
+    #terminal {
+      overflow-y: auto;
+      min-height: 48vh;
+      max-height: calc(100vh - 260px);
+      border: 1px solid var(--border);
+      background: rgba(33, 27, 23, 0.9);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    .entry {
+      margin: 0 0 14px;
+      white-space: pre-wrap;
+    }
+
+    .command {
+      color: var(--accent-2);
+      font-family: Consolas, Monaco, monospace;
+    }
+
+    .system {
+      color: var(--muted);
+    }
+
+    .ending {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .controls {
+      display: grid;
+      gap: 10px;
+    }
+
+    #suggestions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button {
+      min-height: 44px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    .primary {
+      background: #59402b;
+      border-color: #d99c56;
+      color: #fff5e8;
+    }
+
+    .utility-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    input {
+      min-width: 0;
+      min-height: 44px;
+      border: 1px solid var(--border);
+      background: rgba(17, 19, 19, 0.84);
+      color: var(--text);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    footer {
+      color: var(--muted);
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      font-size: 0.8rem;
+      text-align: center;
+      padding: 0 0 6px;
+    }
+
+    @media (max-width: 540px) {
+      main {
+        padding: 10px;
+      }
+
+      #terminal {
+        max-height: calc(100vh - 300px);
+        padding: 13px;
+      }
+
+      #suggestions {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Thida Time Adventure</h1>
+      <div class="scene-pill" id="sceneName">Lab</div>
+    </header>
+
+    <section id="terminal" aria-live="polite"></section>
+
+    <section class="controls">
+      <div id="suggestions"></div>
+      <div class="utility-row">
+        <button type="button" data-command="look">Look</button>
+        <button type="button" data-command="inventory">Inventory</button>
+        <button type="button" id="resetButton">Reset</button>
+      </div>
+      <form id="commandForm">
+        <input id="commandInput" autocomplete="off" autocapitalize="none" placeholder="Type a command...">
+        <button class="primary" type="submit">Send</button>
+      </form>
+    </section>
+
+    <footer>Best played with one thumb and a dangerous amount of confidence.</footer>
+  </main>
+
+  <script>
+    const initialState = () => ({
+      scene: "lab",
+      dressed: true,
+      wearingRaccoon: false,
+      corndogBuff: false,
+      bookOpen: false,
+      onPage69: false,
+      foundCode: false,
+      buttonReady: false,
+      inMachine: false,
+      ended: false,
+      inventory: [],
+      russia: {
+        hasInvitation: false,
+        learnedDance: false,
+        hasSpoon: false,
+        complimentedSamovar: false
+      },
+      ziti: {
+        hasPasta: false,
+        hasSauce: false,
+        hasRicotta: false,
+        hasMozzarella: false,
+        saltedWater: false,
+        cookedPasta: false,
+        layered: false,
+        baked: false
+      },
+      springfield: {
+        hasSquishee: false,
+        hasDonut: false,
+        hasMagazine: false,
+        hasFuse: false,
+        registerOpen: false
+      }
+    });
+
+    let state = loadState();
+    const terminal = document.querySelector("#terminal");
+    const sceneName = document.querySelector("#sceneName");
+    const suggestions = document.querySelector("#suggestions");
+    const input = document.querySelector("#commandInput");
+    const form = document.querySelector("#commandForm");
+    const resetButton = document.querySelector("#resetButton");
+
+    function loadState() {
+      try {
+        const saved = localStorage.getItem("thida-time-adventure-state");
+        return saved ? {...initialState(), ...JSON.parse(saved)} : initialState();
+      } catch {
+        return initialState();
+      }
+    }
+
+    function saveState() {
+      localStorage.setItem("thida-time-adventure-state", JSON.stringify(state));
+    }
+
+    function addItem(item) {
+      if (!state.inventory.includes(item)) state.inventory.push(item);
+    }
+
+    function has(item) {
+      return state.inventory.includes(item);
+    }
+
+    function print(text, className = "") {
+      const entry = document.createElement("p");
+      entry.className = `entry ${className}`.trim();
+      entry.textContent = text;
+      terminal.appendChild(entry);
+      terminal.scrollTop = terminal.scrollHeight;
+    }
+
+    function printIntro() {
+      print("You are Thida, standing in front of a peculiar machine.\nThe machine looks homemade in the way pancakes look homemade when someone is crying.\n\nThe screen says:\n> ENTER CODE\n\nNearby:\n- A book of Russian history\n- A corndog\n- A raccoon mask and tail");
+    }
+
+    function sceneLabel() {
+      if (state.inMachine) return "Machine";
+      return {
+        lab: "Lab",
+        russia: "Imperial Ball",
+        ziti: "Red-Sauce Kitchen",
+        springfield: "Kwik-E-Mart-ish",
+        home: "Home"
+      }[state.scene] || "Somewhere";
+    }
+
+    function updateUI() {
+      sceneName.textContent = sceneLabel();
+      suggestions.innerHTML = "";
+      for (const item of suggestedCommands()) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = item.label;
+        button.dataset.command = item.command;
+        if (item.primary) button.classList.add("primary");
+        suggestions.appendChild(button);
+      }
+      saveState();
+    }
+
+    function suggestedCommands() {
+      if (state.ended) {
+        return [{label: "Play again", command: "reset", primary: true}];
+      }
+
+      if (state.inMachine) {
+        return [
+          {label: "Enter backintime", command: "backintime", primary: true},
+          {label: "Enter pretty", command: "pretty"},
+          {label: "Step away", command: "back"}
+        ];
+      }
+
+      if (state.scene === "lab") {
+        if (state.buttonReady) {
+          return [
+            {label: "Press the button", command: "press button", primary: true},
+            {label: "Read the button", command: "read button"},
+            {label: "Use machine", command: "use machine"}
+          ];
+        }
+        return [
+          {label: "Open book", command: "open book", primary: true},
+          {label: "Page 69", command: "page 69"},
+          {label: "Look page", command: "look page"},
+          {label: "Eat corndog", command: "eat corndog"},
+          {label: "Use machine", command: "use machine"},
+          {label: "Raccoon path", command: "remove clothes"}
+        ];
+      }
+
+      if (state.scene === "russia") {
+        return [
+          {label: "Dance", command: "dance", primary: !state.russia.learnedDance},
+          {label: "Tell dance gossip", command: "gossip dance", primary: state.russia.learnedDance && !state.russia.hasInvitation},
+          {label: "Compliment samovar", command: "compliment samovar"},
+          {label: "Take spoon", command: "take spoon", primary: state.russia.hasInvitation && state.russia.complimentedSamovar},
+          {label: "Use machine", command: "use machine", primary: state.russia.hasSpoon}
+        ];
+      }
+
+      if (state.scene === "ziti") {
+        return [
+          {label: "Take pasta", command: "take pasta"},
+          {label: "Salt water", command: "salt water"},
+          {label: "Boil pasta", command: "boil pasta", primary: state.ziti.hasPasta && state.ziti.saltedWater && !state.ziti.cookedPasta},
+          {label: "Stir sauce", command: "stir sauce"},
+          {label: "Take ricotta", command: "take ricotta"},
+          {label: "Take mozzarella", command: "take mozzarella"},
+          {label: "Assemble ziti", command: "assemble ziti", primary: state.ziti.cookedPasta && state.ziti.hasSauce},
+          {label: "Bake ziti", command: "bake ziti", primary: state.ziti.layered},
+          {label: "Use machine", command: "use machine", primary: state.ziti.baked}
+        ];
+      }
+
+      if (state.scene === "springfield") {
+        return [
+          {label: "Make Squishee", command: "take squishee", primary: !state.springfield.hasSquishee},
+          {label: "Take donut", command: "take donut"},
+          {label: "Read magazine", command: "read magazine"},
+          {label: "Open register", command: "open register", primary: state.springfield.hasMagazine && state.springfield.hasDonut},
+          {label: "Take fuse", command: "take fuse", primary: state.springfield.registerOpen},
+          {label: "Use machine", command: "use machine", primary: state.springfield.hasFuse}
+        ];
+      }
+
+      return [{label: "Look around", command: "look"}];
+    }
+
+    function commandIs(cmd, options) {
+      return options.includes(cmd);
+    }
+
+    function submitCommand(rawCommand) {
+      const cmd = rawCommand.trim().toLowerCase();
+      if (!cmd) return;
+      if (cmd === "reset") {
+        resetGame();
+        return;
+      }
+      print(`> ${cmd}`, "command");
+      handleCommand(cmd);
+      updateUI();
+    }
+
+    function handleCommand(cmd) {
+      if (cmd === "help") {
+        print("Useful commands:\n- look\n- inventory\n- use machine\n- examine [thing]\n- take [thing]\n- talk to [person]\n- use [thing]");
+        return;
+      }
+
+      if (commandIs(cmd, ["inventory", "inv", "i"])) {
+        print(state.inventory.length ? `Inventory:\n- ${state.inventory.join("\n- ")}` : "Your pockets contain lint and emotional range.");
+        return;
+      }
+
+      if (state.inMachine) {
+        handleMachine(cmd);
+        return;
+      }
+
+      if (state.scene === "lab") handleLab(cmd);
+      else if (state.scene === "russia") handleRussia(cmd);
+      else if (state.scene === "ziti") handleZiti(cmd);
+      else if (state.scene === "springfield") handleSpringfield(cmd);
+      else print("Reality has become confused. This is probably the machine's fault.");
+    }
+
+    function useMachine() {
+      state.inMachine = true;
+      print("You approach the peculiar machine.\nThe screen flickers.\nENTER CODE:");
+    }
+
+    function handleMachine(cmd) {
+      if (cmd === "pretty") {
+        print("Hubba hubba, you're damn right you're pretty.\nThe machine seems to respect confidence, but it still wants a code.\n\nENTER CODE:");
+      } else if (cmd === "backintime") {
+        if (state.wearingRaccoon) {
+          print("The machine refuses. This is not time-travel attire.\nThe tail sparks once, judgmentally.\n\nENTER CODE:");
+        } else {
+          state.buttonReady = true;
+          state.inMachine = false;
+          print("The machine hums.\nA glowing green button appears.\n\n1. Press button\n2. Read button");
+        }
+      } else if (commandIs(cmd, ["exit", "leave", "back"])) {
+        state.inMachine = false;
+        print("You step away from the machine.");
+      } else {
+        print("The machine hums.\n> NO\nA little rude, honestly.\n\nENTER CODE:");
+      }
+    }
+
+    function handleLab(cmd) {
+      if (commandIs(cmd, ["look", "look around"])) {
+        print("You are back near the peculiar machine.\nNearby: the Russian history book, the corndog, and the raccoon costume." + (state.buttonReady ? "\nA glowing green button waits on the machine like it pays rent." : ""));
+      } else if (commandIs(cmd, ["look book", "examine book", "inspect book"])) {
+        print("A thick book on Russian history. You could open it.\nIts energy says: 'This will be on the test, but the test is flirtatious.'");
+      } else if (cmd === "open book") {
+        state.bookOpen = true;
+        state.onPage69 = false;
+        print("You open the book. It smells like knowledge and regret.");
+      } else if (cmd === "look page") {
+        if (!state.bookOpen) print("You are not currently reading anything. Bold strategy.");
+        else if (!state.onPage69) print("For best results, turn to page 69.");
+        else {
+          state.foundCode = true;
+          print("A brief history of the Romanov family unfurls before you.\nIn the margin, someone has written: backintime\nMaybe that's important?");
+        }
+      } else if (commandIs(cmd, ["turn to page 69", "goto 69", "go to page 69", "page 69"])) {
+        if (state.bookOpen) {
+          state.onPage69 = true;
+          print("You flip to page 69.\nThe page falls open with the confidence of a dirty joke in a library.");
+        } else print("Maybe open the book first.");
+      } else if (commandIs(cmd, ["look corndog", "examine corndog", "inspect corndog"])) {
+        print("It's a corndog. In mustard, someone wrote: pretty\nThis is either a clue or lunch having self-esteem.");
+      } else if (cmd === "eat corndog") {
+        if (!state.corndogBuff) {
+          state.corndogBuff = true;
+          state.foundCode = true;
+          print("You eat the corndog. Power surges through you.\nThe password becomes clear! It is: backintime\nAlso, the machine now thinks you're brave and sodium-forward.");
+        } else print("You already consumed your power source.");
+      } else if (commandIs(cmd, ["look raccoon", "examine raccoon", "inspect raccoon", "look costume", "examine costume"])) {
+        print("A raccoon mask and tail sit together like they are waiting for a scandal.\nThe mask looks mischievous. The tail appears to plug in.\nYou cannot do anything with this in your current state.");
+      } else if (cmd === "remove clothes") {
+        state.dressed = false;
+        print("You remove your clothes. Bold choice.\nThe machine pretends not to notice, but it definitely updates a spreadsheet.");
+      } else if (cmd === "wear costume") {
+        if (state.wearingRaccoon) print("You are already living your most chaotic life.");
+        else if (!state.dressed) {
+          state.wearingRaccoon = true;
+          state.foundCode = true;
+          print("You have picked the kinky choice.\nYou are now naked wearing a mask and have a raccoon tail plugged in.\nYou now know the password to the machine. It is backintime\nBe sure to remove the costume and get dressed before you go. You sexy thing.");
+        } else print("You feel like you're skipping a step here.");
+      } else if (cmd === "remove costume") {
+        if (state.wearingRaccoon) {
+          state.wearingRaccoon = false;
+          print("You remove the raccoon costume.");
+        } else print("You are not wearing the costume.");
+      } else if (cmd === "get dressed") {
+        if (state.dressed) print("You are already dressed. Very responsible. Disgusting.");
+        else {
+          state.dressed = true;
+          print("You get dressed. Civilization exhales.");
+        }
+      } else if (commandIs(cmd, ["goto machine", "go to machine", "use machine", "look machine", "examine machine"])) {
+        useMachine();
+      } else if (commandIs(cmd, ["1", "press button"])) {
+        if (state.buttonReady) travelTo("russia");
+        else print("Press what, exactly?");
+      } else if (commandIs(cmd, ["2", "read button"])) {
+        if (state.buttonReady) print("The button reads: 'Press me... duh.'\nBelow that, in smaller print: 'Do not press while moist.'");
+        else print("There is no button yet.");
+      } else {
+        print("The machine does not understand that.");
+      }
+    }
+
+    function travelTo(scene) {
+      state.scene = scene;
+      state.buttonReady = false;
+      state.inMachine = false;
+
+      if (scene === "russia") {
+        print("You press the button.\nReality loosens like a bad bra strap.\n\nYou tumble into a Romanoff-era ball.\nCrystal chandeliers sparkle overhead. Violins weep in cursive.\nA footman squints at you like you might be a duchess or a health-code violation.");
+        showRussia();
+      } else if (scene === "ziti") {
+        print("You jam the Temporal Calibration Spoon into the machine.\nThe machine slurps the aristocratic energy off it and flings you elsewhere.\n\nYou land in a red-sauce kitchen where every uncle has an opinion.\nA sacred baking dish sits on the counter, waiting to be emotionally filled.");
+        showZiti();
+      } else if (scene === "springfield") {
+        print("The baked ziti glows. Everyone gets quiet.\nThe machine absorbs one perfect corner piece and belches basil.\n\nYou arrive in a very yellow town at a convenience store.\nA sign says: KWIK-E-MART-ISH. Legally distinct. Spiritually sticky.");
+        showSpringfield();
+      } else if (scene === "home") {
+        state.ended = true;
+        print("The final fuse clicks into place.\nThe machine pauses, like it is trying to say something sincere.\n\nMachine: Taking a break is allowed.\nMachine: Also, you currently smell like aristocracy, garlic, and blue raspberry.\n\nThe world folds softly around you.\nYou make it home with a pocket full of nonsense and a stomach full of victory.\n\nTHE END\n\nThank you for playing, Thida. You are deeply cute and alarmingly powerful.", "ending");
+      }
+    }
+
+    function showRussia() {
+      print("You are at the imperial ball.\nPlaces and people nearby:\n- A suspicious footman guarding the ballroom\n- A gossiping countess with a fan\n- A samovar steaming in the corner\n- A dance floor full of dangerous cheekbones\n- Your machine, currently sulking beside a marble column\n\nGoal: find something fancy enough to recalibrate the machine.");
+    }
+
+    function handleRussia(cmd) {
+      const russia = state.russia;
+      if (commandIs(cmd, ["look", "look around"])) showRussia();
+      else if (commandIs(cmd, ["talk footman", "talk to footman", "speak footman"])) {
+        if (russia.hasInvitation) print("The footman sees your invitation.\n'Ah. Princess Thida of Target. A respected and terrifying house.'\nHe bows and lets you into the deeper ballroom.");
+        else print("The footman blocks your way with one eyebrow.\n'No invitation, no entrance. Even if your aura is confusingly royal.'\nHe glances toward the gossiping countess, who seems to have paper sticking out of her fan.");
+      } else if (commandIs(cmd, ["talk countess", "talk to countess", "speak countess"])) {
+        print("The countess snaps her fan open.\n'Darling, tell me one scandal and I shall give you one useful thing.'\nShe seems interested in the dance floor, the samovar, and herself, in that order.");
+      } else if (commandIs(cmd, ["gossip dance", "tell countess dance", "tell scandal dance"])) {
+        if (!russia.learnedDance) print("You do not know enough dance gossip yet.\nThe countess can smell underprepared gossip. It is her gift and her curse.");
+        else if (!russia.hasInvitation) {
+          russia.hasInvitation = true;
+          addItem("creased invitation");
+          print("You tell the countess the dancers are doing the forbidden Side-Eye Waltz.\nShe gasps so hard a pearl considers leaving her necklace.\n'Take this invitation, Princess Thida of Target.'");
+        } else print("The countess has already rewarded your scandal delivery service.");
+      } else if (commandIs(cmd, ["dance", "use dance floor", "go dance floor", "examine dance floor", "look dance floor"])) {
+        russia.learnedDance = true;
+        print("You step onto the dance floor.\nA duke whispers the steps: curtsy, side-eye, threaten chandelier.\nYou perform them perfectly. The chandelier, wisely, backs down.\nYou have learned a scandalous dance.");
+      } else if (commandIs(cmd, ["look samovar", "examine samovar", "talk samovar", "talk to samovar"])) {
+        print("The samovar steams with the self-importance of a tiny brass emperor.\nA plaque reads: 'Compliments before tea. Tea before secrets.'");
+      } else if (commandIs(cmd, ["compliment samovar", "flatter samovar"])) {
+        russia.complimentedSamovar = true;
+        print("You tell the samovar it has the posture of a god and the waistline of a champion.\nIt whistles bashfully and dispenses tea.");
+      } else if (commandIs(cmd, ["take spoon", "get spoon", "steal spoon"])) {
+        if (!russia.hasInvitation) print("The spoon is on the royal dessert table behind the footman.\nYou need an invitation before you can reach it.");
+        else if (!russia.complimentedSamovar) print("You reach for the spoon, but it is too hot with aristocratic nonsense.\nMaybe the samovar can cool things down if you treat it right.");
+        else {
+          russia.hasSpoon = true;
+          addItem("temporal calibration spoon");
+          print("You take the Temporal Calibration Spoon.\nIt is tiny, silver, and somehow divorced three times.\nThe machine pings happily from across the ballroom.");
+        }
+      } else if (commandIs(cmd, ["use machine", "go machine", "goto machine"])) {
+        if (russia.hasSpoon) travelTo("ziti");
+        else print("The machine coughs up a polite error.\n> NEEDS ONE FANCY OBJECT\nIt refuses to elaborate.");
+      } else print("A violinist plays over your confusion. Rude, but elegant.");
+    }
+
+    function showZiti() {
+      print("You are in the red-sauce kitchen.\nNearby:\n- A pot of unsalted water\n- A box of ziti\n- A sauce pot that looks emotionally available\n- Ricotta, lounging like it knows what it has\n- Mozzarella, wrapped in mystery\n- A baking dish\n- Your machine, judging the backsplash\n\nGoal: make baked ziti worthy of the Council of Uncles.");
+    }
+
+    function handleZiti(cmd) {
+      const ziti = state.ziti;
+      if (commandIs(cmd, ["look", "look around"])) showZiti();
+      else if (commandIs(cmd, ["take pasta", "get pasta", "take ziti", "get ziti"])) {
+        ziti.hasPasta = true;
+        addItem("ziti");
+        print("You take the ziti.\nThe little tubes seem nervous but ready for greatness.");
+      } else if (commandIs(cmd, ["salt water", "use salt", "salt pot", "season water"])) {
+        ziti.saltedWater = true;
+        print("You salt the water until it tastes like the ocean got into a minor argument.\nAn uncle nods once. This is legally a blessing.");
+      } else if (commandIs(cmd, ["boil pasta", "cook pasta", "use pasta"])) {
+        if (!ziti.hasPasta) print("You need pasta before you can cook pasta.\nThis kitchen respects many crimes, but not that one.");
+        else if (!ziti.saltedWater) print("You try to cook the pasta in unsalted water.\nEvery uncle turns slowly toward you. The air becomes Catholic.\nMaybe salt the water first.");
+        else {
+          ziti.cookedPasta = true;
+          print("The ziti softens but keeps a little bite, like it has boundaries.\nPerfect.");
+        }
+      } else if (commandIs(cmd, ["take sauce", "get sauce", "stir sauce", "use sauce"])) {
+        ziti.hasSauce = true;
+        addItem("sauce");
+        print("You stir the sauce.\nIt moves slowly, red and glossy, like it knows your middle name.\nA hush falls over the room. Someone whispers, 'She's got hands.'");
+      } else if (commandIs(cmd, ["take ricotta", "get ricotta", "use ricotta"])) {
+        ziti.hasRicotta = true;
+        addItem("ricotta");
+        print("You scoop the ricotta.\nIt is soft, shameless, and fully aware of its effect on people.");
+      } else if (commandIs(cmd, ["take mozzarella", "get mozzarella", "use mozzarella"])) {
+        ziti.hasMozzarella = true;
+        addItem("mozzarella");
+        print("You unwrap the mozzarella slowly because it deserves ceremony.\nIt stretches once, dramatically, like a lounge singer accepting applause.");
+      } else if (commandIs(cmd, ["layer ziti", "layer pasta", "use baking dish", "assemble ziti", "make ziti"])) {
+        if (!ziti.cookedPasta || !ziti.hasSauce) print("The baking dish waits.\nYou need cooked pasta and sauce before this gets serious.");
+        else if (!ziti.hasRicotta || !ziti.hasMozzarella) print("You start layering, but the dish feels emotionally unavailable.\nThis needs both ricotta and mozzarella. One for tenderness, one for drama.");
+        else {
+          ziti.layered = true;
+          print("You layer pasta, sauce, ricotta, and mozzarella.\nThe spoon drags through the sauce with the kind of intimacy that gets a movie an R rating.\nThe Council of Uncles leans in. Nobody breathes through their nose.");
+        }
+      } else if (commandIs(cmd, ["bake ziti", "put in oven", "use oven", "bake"])) {
+        if (!ziti.layered) print("You cannot bake vibes alone.\nAssemble the ziti first.");
+        else {
+          ziti.baked = true;
+          addItem("perfect baked ziti");
+          print("The ziti bakes until the cheese bubbles like gossip in a silk robe.\nYou pull it out golden, saucy, and frankly inappropriate.\nThe Council of Uncles applauds by pretending not to cry.");
+        }
+      } else if (commandIs(cmd, ["use machine", "go machine", "goto machine"])) {
+        if (ziti.baked) travelTo("springfield");
+        else print("The machine sniffs the air.\n> NEEDS PERFECT BAKED ZITI\nIt has developed standards. Terrible.");
+      } else print("An uncle mutters, 'What is she doing?' but in a supportive way.");
+    }
+
+    function showSpringfield() {
+      print("You are in the Kwik-E-Mart-ish.\nNearby:\n- A Squishee machine making forbidden blue noises\n- A donut display under light security\n- A magazine rack\n- A suspicious register\n- A hot dog rotating like it remembers ancient wars\n- Your machine, jammed open and missing one fuse\n\nGoal: find the final fuse without going to Moe's.");
+    }
+
+    function handleSpringfield(cmd) {
+      const springfield = state.springfield;
+      if (commandIs(cmd, ["look", "look around"])) showSpringfield();
+      else if (commandIs(cmd, ["take squishee", "get squishee", "use squishee machine", "make squishee"])) {
+        springfield.hasSquishee = true;
+        addItem("blue raspberry squishee");
+        print("You pull the Squishee lever.\nBlue raspberry pours out with the confidence of a substance that is not in nature.\nYou now have a Squishee and possibly night vision.");
+      } else if (commandIs(cmd, ["take donut", "get donut", "buy donut"])) {
+        if (!springfield.hasSquishee) print("The donut display refuses to open.\nA tiny sign says: 'Donuts are released only to customers holding suspicious beverages.'");
+        else {
+          springfield.hasDonut = true;
+          addItem("pink donut");
+          print("The case clicks open.\nYou take a pink donut. It sparkles with workplace avoidance.");
+        }
+      } else if (commandIs(cmd, ["look magazine", "examine magazine", "read magazine", "take magazine", "get magazine"])) {
+        springfield.hasMagazine = true;
+        addItem("time travel magazine");
+        print("You grab a magazine titled: SO YOU'VE BEEN TIME TRAVELING.\nThe quiz says your ideal fuse is hidden behind a register if you bribe it with dessert.\nHelpful and weirdly specific.");
+      } else if (commandIs(cmd, ["look register", "examine register", "open register", "use register"])) {
+        if (!springfield.hasMagazine) print("The register flashes: READ A CLUE, MA'AM.\nIt is a machine, but it has boundaries.");
+        else if (!springfield.hasDonut) print("The register drawer sticks.\nThe magazine mentioned dessert. Apparently this drawer has needs.");
+        else {
+          springfield.registerOpen = true;
+          print("You place the donut on the counter.\nThe register accepts the tribute and pops open.\nInside is a glowing final fuse, resting on a receipt for one emotional support burrito.");
+        }
+      } else if (commandIs(cmd, ["take fuse", "get fuse"])) {
+        if (!springfield.registerOpen) print("You do not see a fuse yet.\nThe register is still hiding its little electric secret.");
+        else {
+          springfield.hasFuse = true;
+          addItem("final machine fuse");
+          print("You take the final machine fuse.\nIt hums in your palm like it has gossip from the future.");
+        }
+      } else if (commandIs(cmd, ["look hot dog", "examine hot dog", "take hot dog", "eat hot dog"])) {
+        print("The hot dog rotates slowly.\nYou sense it has witnessed every mistake humanity has made and several we are still drafting.\nYou leave it alone, because some artifacts belong in museums.");
+      } else if (commandIs(cmd, ["use machine", "go machine", "goto machine"])) {
+        if (springfield.hasFuse) travelTo("home");
+        else print("The machine sparks.\n> NEEDS FINAL FUSE\nIt points, somehow, toward the suspicious register.");
+      } else print("Somewhere nearby, a man says 'D'oh' for legal-adjacent reasons.");
+    }
+
+    function resetGame() {
+      state = initialState();
+      terminal.innerHTML = "";
+      localStorage.removeItem("thida-time-adventure-state");
+      printIntro();
+      updateUI();
+      input.focus();
+    }
+
+    document.body.addEventListener("click", (event) => {
+      const button = event.target.closest("button[data-command]");
+      if (button) submitCommand(button.dataset.command);
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const value = input.value;
+      input.value = "";
+      submitCommand(value);
+    });
+
+    resetButton.addEventListener("click", resetGame);
+
+    if (!localStorage.getItem("thida-time-adventure-state")) {
+      printIntro();
+    } else {
+      print("Welcome back. The machine remembers you, which is concerning.", "system");
+      if (state.scene === "russia") showRussia();
+      else if (state.scene === "ziti") showZiti();
+      else if (state.scene === "springfield") showSpringfield();
+      else if (state.scene === "lab") handleLab("look");
+    }
+    updateUI();
+  </script>
+</body>
+</html>
